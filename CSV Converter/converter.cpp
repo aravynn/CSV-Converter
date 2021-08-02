@@ -26,29 +26,29 @@ converter::converter(userInput* ui) : m_u{ ui } {
 
     // that was easy! 
     // step 3: the hard part. Go line by line, and find and create pairings of CSV lines and html data.
-    int lastHTML = -1;
+  //  int lastHTML = -1;
     int found = 0;
 
     for (size_t i{ 0 }; i < m_csv.size(); ++i) {
         // for each CSV line check the HTML line. 
-        if (m_csv.at(i).Cat == "") {
+    //    if (m_csv.at(i).Cat == "") {
             // this is part of the previous section 
-           m_csv.at(i).htmlID = lastHTML;
-        }
-        else {
-            lastHTML = -1;
+    //       m_csv.at(i).htmlID = lastHTML;
+    //    }
+     //   else {
+     //       lastHTML = -1;
             for (size_t q{ 0 }; q < m_html.size(); ++q) {
                 // for each html element, check this line. 
                 if (isInSection(i, q)) {
                     m_csv.at(i).htmlID = q; // set the HTML entity.
-                    lastHTML = q;
+     //               lastHTML = q;
                     //std::cout << "Found " << m_csv.at(i).SAP << " in " << m_html.at(q) << "\n\n";
                     ++found;
                     break; // this section is correct.
                 }
 
             }
-        }
+     //   }
     }
 
     /*for (csvLine l : m_csv) {
@@ -59,7 +59,7 @@ converter::converter(userInput* ui) : m_u{ ui } {
     std::cout << "Found " << found << "/" << m_csv.size() << " Lines total \n";
 
     // step 4: create CSV's. All sections are now matched to the related csv lines. We'll need to convert to csv format. 
-    generateCSVs(500);
+    generateCSVs(5000); // increase total lines, we only need one file now. 
 
 
     
@@ -146,7 +146,7 @@ void converter::csvBreakdown() {
     //int i{ 0 }; // first string. 
     for (std::string c : csvData) {
         // take each part and create the struct to push onto m_csv
-        std::vector<std::string> ci = explode(",", c); // single line. 
+        std::vector<std::string> ci = explode("#", c); // single line. 
 
         // error here - out of range?
         if (ci.size() < 5) {
@@ -157,6 +157,8 @@ void converter::csvBreakdown() {
                 // we'll need to update the sizes to the correct fractional values. 
                 ci.at(1) = updateSizeOptions(ci.at(1), 16);
             }
+
+            std::cout << ci.at(0) << ' ' << ci.at(1) << ' ' << ci.at(2) << ' ' << ci.at(3) << ' ' << ci.at(4) << '\n';
 
             m_csv.push_back(csvLine(ci.at(0), ci.at(1), ci.at(2), ci.at(3), ci.at(4))); // corrected and added size.  
         }
@@ -275,7 +277,9 @@ void converter::generateCSVs(int maxLines) {
 
     // lines per CSV.
     int linesThisCSV = 1;
-    int ID = 4730000;
+    int ID{ 5745787 };
+    int IDStep{ 5 };
+    int productID = ID;
     int files = 1;
     std::stringstream csvContent; // content for output.
 
@@ -311,13 +315,21 @@ void converter::generateCSVs(int maxLines) {
 
         // add the header for the new file.
         if (linesThisCSV == 1) {
-            std::string header = "ID,Type,SKU,Name,Published,Visibility,Description,Tax Status,In Stock?,Stock,Weight,Length,Width,Height,Price,Categories,Images,Parent,Att1Name,Att1Val,Att1Vis,Att1Glob,Att2Name,Att2Val,Att2Vis,Att2Glob";
+            //std::string header = "ID,Type,SKU,Name,Published,Visibility,Description,Tax Status,In Stock?,Stock,Weight,Length,Width,Height,Price,Categories,Images,Parent,Att1Name,Att1Val,Att1Vis,Att1Glob,Att2Name,Att2Val,Att2Vis,Att2Glob";
+            // new replacement header: 
+            std::string header = "post_id#type#sku: sku#post_title#visibility#post_content#inventory: stock_status#inventory: stock#weight#length#width#height#price: regular_price#product_cat#images#By ID: post_parent#attribute:Size#attribute_data:Size#meta:attribute_Size#attribute:Options#attribute_data:Options#meta:attribute_Options#";
+            
             csvContent << header << '\n';
         }
 
         linesThisCSV++;
         
-        csvContent << ++ID << ",variable,,,'" << title << "',1,visible,'" << content.str() << "',taxable,1,,0.5,1,1,3,,'" << thisSections.at(0).Cat << "','";
+        //csvContent << ++ID << ",variable,,'" << title << "',1,visible,'" << content.str() << "',taxable,1,,0.5,1,1,3,,'" << thisSections.at(0).Cat << "','";
+        // replacement Content
+        ID += IDStep; // step by X to avoid duplication issues in wordpress. Man I hate wordpress.
+        csvContent << ID << "#variable##" << title << "#1#" << content.str() << "#1#100#0.5#1#1#3##" << thisSections.at(0).Cat << "#";
+        
+        productID = ID;
 
         bool first{ true };
         for (std::string i : images) {
@@ -329,7 +341,8 @@ void converter::generateCSVs(int maxLines) {
             }
         }
  
-        csvContent << "',,Size,'";
+        //csvContent << "',,Size,'";
+        csvContent << "##";
 
         std::vector<std::string> variations;
         bool needsAtt2{ false };
@@ -349,20 +362,23 @@ void converter::generateCSVs(int maxLines) {
                     varString << l.Size;
                 }
                 else {
-                    varString << ", " << l.Size;
+                    varString << " | " << l.Size;
                 }
             }
 
             variations.push_back(l.Size);
         }
 
-        csvContent << varString.str() << "',1,0,";
+        //csvContent << varString.str() << "',1,0,";
+        csvContent << varString.str() << "#0|1|1##";
 
         if (needsAtt2) {
-            csvContent << "Alternate,'FirstVal, SecondVal',1,0\n";
+            //csvContent << "Alternate,'FirstVal, SecondVal',1,0\n";
+            csvContent << "FirstVal | SecondVal#0|1|1#\n";
         }
         else {
-            csvContent << ",,0,0\n";
+            //csvContent << ",,0,0\n";
+            csvContent << "#0|0|0#\n";
         }
 
         // now that we have a section of iterations, we'll need too take this data and import it into the CSV format. 
@@ -371,25 +387,32 @@ void converter::generateCSVs(int maxLines) {
 
            // l.Price = l.Price.substr(1);
             linesThisCSV++;
-            csvContent << ++ID << ",variation," << l.Part << ",'" << title << "-" << l.Size << "',1,visible,,taxable,1,100,0.5,1,1,3," << l.Price << ",,'" <<
-                title << "',Size,'" << l.Size << "',,0";
+            //csvContent << ++ID << ",variation," << l.Part << ",'" << title << "-" << l.Size << "',1,visible,,taxable,1,100,0.5,1,1,3," << l.Price << ",,,'" <<
+            //    productID << "',Size,'" << l.Size << "',1,0";
+
+            ID += IDStep;
+            csvContent << ID << "#variation#" << l.Part << "#" << title << "-" << l.Size << "#1##1#100#0.5#1#1#3#" << l.Price << "###" << productID << "###" << l.Size << "#";
+
 
             if (needsAtt2) {
                 if (l.Alt == -1) {
-                    csvContent << ",Alternate,FirstVal,1,0\n";
+                    //csvContent << ",Alternate,FirstVal,1,0\n";
+                    csvContent << "##FirstVal\n";
                 }
                 else {
-                    csvContent << ",Alternate,SecondVal,1,0\n";
+                    //csvContent << ",Alternate,SecondVal,1,0\n";
+                    csvContent << "##SecondVal\n";
                 }
             }
             else {
-                csvContent << ",,,0,0\n";
+                //csvContent << ",,,0,0\n";
+                csvContent << "###\n";
             }
         }
 
         // finally, check if we've added more lines than the limit. 
         if (linesThisCSV >= maxLines || i == m_html.size() - 1) {
-            linesThisCSV = 0; // reset lines.
+            linesThisCSV = 1; // reset lines.
 
             std::stringstream filename;
             filename << "OutputFile-" << files++;
